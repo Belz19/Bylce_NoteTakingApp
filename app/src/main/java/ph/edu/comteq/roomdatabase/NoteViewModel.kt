@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 
@@ -14,7 +15,7 @@ class NoteViewModel(application: Application) : AndroidViewModel(application) {
     private val noteDao: NoteDao = AppDatabase.getDatabase(application).noteDao()
 
     private val _searchQuery = MutableStateFlow(value = "")
-    val searchQuery: StateFlow<String> = _searchQuery
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
     val allNotes: Flow<List<Note>> = searchQuery.flatMapLatest { query ->
         if (query.isBlank()) {
             noteDao.getAllNotes()  // Show everything
@@ -45,12 +46,10 @@ class NoteViewModel(application: Application) : AndroidViewModel(application) {
 
     val allNotesWithTags: Flow<List<NoteWithTags>> = noteDao.getAllNotesWithTags()
 
-    fun getNoteById(id: Int): NoteWithTags?{
-    return noteDao.getNoteWithTags(id)
-    }
 
     fun getNoteWithTags(noteId: Int): NoteWithTags? {
         return noteDao.getNoteWithTags(noteId)
     }
+
 
 }

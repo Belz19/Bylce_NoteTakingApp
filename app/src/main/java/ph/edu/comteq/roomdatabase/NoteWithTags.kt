@@ -17,8 +17,8 @@ data class NoteWithTags(
         entityColumn = "id", //Tag's id
         associateBy = Junction(
             value = NoteTagCrossRef::class,
-            parentColumn = "noteId",
-            entityColumn = "tagId"
+            parentColumn = "note_id",
+            entityColumn = "tag_id"
         )
     )
 

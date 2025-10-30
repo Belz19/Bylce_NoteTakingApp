@@ -7,11 +7,11 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NoteDao {
-    // ============== BASIC NOTE OPERATIONS =================
     @Insert
     suspend fun insertNote(note: Note): Long
 
@@ -21,8 +21,11 @@ interface NoteDao {
     @Delete
     suspend fun deleteNote(note: Note)
 
+    @Upsert
+    suspend fun upsertNote(note: Note)
+
     @Query("SELECT * FROM notes WHERE id = :id")
-    suspend fun getNoteById(id: Int): Note?
+    fun getNoteById(id: Int): Note?
 
     @Query("SELECT * FROM notes ORDER BY id DESC")
     fun getAllNotes(): Flow<List<Note>>
@@ -38,11 +41,9 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE category = :category ORDER BY updated_at DESC")
     fun getNotesByCategory(category: String): Flow<List<Note>>
 
-    // NEW: Get all unique categories (useful for showing category list)
+    // get all categories
     @Query("SELECT DISTINCT category FROM notes WHERE category != '' ORDER BY category ASC")
     fun getAllCategories(): Flow<List<String>>
-
-    // ==================== TAG OPERATIONS ====================
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTag(tag: Tag): Long
@@ -53,7 +54,7 @@ interface NoteDao {
     @Query("SELECT * FROM tags WHERE id = :id")
     suspend fun getTagById(id: Int): Tag?
 
-    // ==================== NOTE-TAG OPERATIONS ====================
+    // For note tags
     // Connect a note to a tag
     @Insert(onConflict = OnConflictStrategy.IGNORE)  // Ignore if already connected
     suspend fun insertNoteTagCrossRef(crossRef: NoteTagCrossRef)
@@ -65,7 +66,7 @@ interface NoteDao {
     // get all notes with their tags
     @Transaction  // Important: Ensures all data loads together
     @Query("SELECT * FROM notes WHERE id = :noteId")
-     fun getNoteWithTags(noteId: Int): NoteWithTags?
+    fun getNoteWithTags(noteId: Int): NoteWithTags?
 
     // Get all notes WITH their tags
     @Transaction
