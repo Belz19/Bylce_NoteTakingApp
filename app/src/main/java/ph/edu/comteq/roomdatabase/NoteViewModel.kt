@@ -12,10 +12,14 @@ import kotlinx.coroutines.launch
 
 
 class NoteViewModel(application: Application) : AndroidViewModel(application) {
+
     private val noteDao: NoteDao = AppDatabase.getDatabase(application).noteDao()
 
-    private val _searchQuery = MutableStateFlow(value = "")
+    // Track what the user is searching for
+    private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    // Smart notes: shows all notes OR search results
     val allNotes: Flow<List<Note>> = searchQuery.flatMapLatest { query ->
         if (query.isBlank()) {
             noteDao.getAllNotes()  // Show everything
@@ -24,19 +28,21 @@ class NoteViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    //user types in search box
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
     }
 
+    // clear the search
     fun clearSearch() {
         _searchQuery.value = ""
     }
 
-    fun insert(note: Note) = viewModelScope.launch{
+    fun insert(note: Note) = viewModelScope.launch {
         noteDao.insertNote(note)
     }
 
-    fun update(note: Note) = viewModelScope.launch{
+    fun update(note: Note) = viewModelScope.launch {
         noteDao.updateNote(note)
     }
 
@@ -44,12 +50,11 @@ class NoteViewModel(application: Application) : AndroidViewModel(application) {
         noteDao.deleteNote(note)
     }
 
+    fun getNoteById(id: Int): Flow<Note?> = noteDao.getNoteById(id)
     val allNotesWithTags: Flow<List<NoteWithTags>> = noteDao.getAllNotesWithTags()
-
 
     fun getNoteWithTags(noteId: Int): NoteWithTags? {
         return noteDao.getNoteWithTags(noteId)
     }
-
 
 }

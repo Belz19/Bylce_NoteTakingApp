@@ -47,6 +47,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +67,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.flow.Flow
 import ph.edu.comteq.roomdatabase.ui.theme.RoomDatabaseTheme
 
 class MainActivity : ComponentActivity() {
@@ -82,20 +84,33 @@ class MainActivity : ComponentActivity() {
 
                 NavHost(
                     navController = navController,
-                    startDestination = "notes_list"  // Starting Screen
+                    startDestination = "notes_list"
                 ) {
-                    // this is  the main screen with search and list
-                    composable ("notes_list"){
+                    composable("notes_list") {
                         NotesListScreenWithSearch(
                             notes = notesWithTags,
                             viewModel = viewModel,
                             onAddNote = {
-                                // for adding new note screen
                                 navController.navigate("note_edit/new")
+                            },
+                            onNoteClick = { noteId ->
+                                navController.navigate("note_edit/$noteId")
                             }
                         )
                     }
+
+                    // Edit/Add Note Screen
+                    composable("note_edit/{noteId}") { backStackEntry ->
+                        val noteId = backStackEntry.arguments?.getString("noteId") ?: "new"
+                        NoteAddScreen(
+                            viewModel = viewModel,
+                            noteId = noteId,
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
                 }
+
+
             }
         }
     }
@@ -106,13 +121,20 @@ class MainActivity : ComponentActivity() {
 fun NoteListScreen(
     notes: List<NoteWithTags>,
     viewModel: NoteViewModel,
+    onNoteClick: (Int) -> Unit,
     modifier: Modifier = Modifier
-) {
-    val notesWithTags by viewModel.allNotesWithTags.collectAsState(initial = emptyList())
 
-    LazyColumn(modifier = modifier) {
-        items(notesWithTags){note ->
-            NoteCard(note = note.note, tags = note.tags)
+) {
+    Scaffold(
+    ) { innerPadding ->
+        LazyColumn(modifier = Modifier.padding(innerPadding)) {
+            items(notes) { noteWithTags ->
+                NoteCard(
+                    note = noteWithTags.note,
+                    tags = noteWithTags.tags,
+                    onClick = { onNoteClick(noteWithTags.note.id) }
+                )
+            }
         }
     }
 }
@@ -121,19 +143,19 @@ fun NoteListScreen(
 @Composable
 fun NoteCard(
     note: Note,
-    tags: List<Tag> = emptyList(),  // NEW: Optional tags list
+    tags: List<Tag> = emptyList(),
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {}
+    onClick: (Int) -> Unit = {}
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
             .padding(8.dp)
-            .clickable { onClick() },
+            .clickable { onClick(note.id) },
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Date and Category Row
+            // For Date and Category Row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -188,7 +210,7 @@ fun NoteCard(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     tags.forEach { tag ->
-                        TagChip(tag = tag)
+                        Tag(tag = tag)
                     }
                 }
             }
@@ -197,9 +219,9 @@ fun NoteCard(
 }
 
 @Composable
-fun TagChip(
+fun Tag(
     tag: Tag,
-    onRemove: (() -> Unit)? = null  // to remove tags
+    onRemove: (() -> Unit)? = null  // remove tags
 ) {
     Surface(
         color = Color(android.graphics.Color.parseColor(tag.color)).copy(alpha = 0.2f),
@@ -241,13 +263,13 @@ fun NotesListScreenWithSearch(
     notes: List<NoteWithTags>,
     viewModel: NoteViewModel,
     onAddNote: () -> Unit,
-//    onEditNote: (Int) -> Unit
+    onNoteClick: (Int) -> Unit
+
 ){
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
-    val notes by viewModel.allNotes.collectAsState(initial = emptyList())
     var isAddingNote by remember { mutableStateOf(false) }
-
+    val notes by viewModel.allNotes.collectAsState(initial = emptyList())
     val notesWithTags by viewModel.allNotesWithTags.collectAsState(initial = emptyList())
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -263,7 +285,7 @@ fun NotesListScreenWithSearch(
                                 searchQuery = it
                                 viewModel.updateSearchQuery(it)
                             },
-                            onSearch = {  },
+                            onSearch = {},
                             expanded = true,
                             onExpandedChange = { shouldExpand ->
                                 // This is called when the system wants to change expanded state
@@ -282,7 +304,7 @@ fun NotesListScreenWithSearch(
                                     viewModel.clearSearch()
                                 }) {
                                     Icon(
-                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        Icons.Default.ArrowBack,
                                         contentDescription = "Close search"
                                     )
                                 }
@@ -312,12 +334,13 @@ fun NotesListScreenWithSearch(
                         }
                     }
                 ) {
-                    // content shown inside the search view
+// content shown inside the search view
+                    val notesWithTags by viewModel.allNotesWithTags.collectAsState(initial = emptyList())
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp)
                     ) {
-                        if (notesWithTags.isEmpty()) {
+                        if (notes.isEmpty()) {
                             item {
                                 Text(
                                     text = "No notes found",
@@ -327,16 +350,16 @@ fun NotesListScreenWithSearch(
                                 )
                             }
                         } else {
-                            items(notesWithTags) { note ->
-                                NoteCard(note = note.note, tags = note.tags)
+                            items(notes) { note ->
+                                NoteCard(note = note)
                             }
                         }
-                    }
-                }
+                    }}
             }
             else if(isAddingNote){
                 NoteAddScreen(
                     viewModel = viewModel,
+                    noteId = "new",
                     onNavigateBack = {
                         isAddingNote = false // Closes the overlay
                     },
@@ -371,45 +394,71 @@ fun NotesListScreenWithSearch(
         NoteListScreen(
             notes = notesWithTags,
             viewModel = viewModel,
+            onNoteClick = onNoteClick,
             modifier = Modifier.padding(innerPadding)
         )
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoteAddScreen(
     viewModel: NoteViewModel,
+    noteId: String, // new
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // State for the new note fields
-    var title by remember { mutableStateOf("") }
-    var content by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("") }
+    val noteToEdit by if (noteId != "new") {
+        (viewModel.getNoteById(noteId.toInt()) as Flow<Note?>)
+            .collectAsState(initial = null)
+    } else remember { mutableStateOf<Note?>(null) }
 
-    // Logic to create and save the new note
+
+    var title by remember { mutableStateOf(noteToEdit?.title ?: "") }
+    var content by remember { mutableStateOf(noteToEdit?.content ?: "") }
+    var category by remember { mutableStateOf(noteToEdit?.category ?: "")
+    }
+
+    LaunchedEffect(noteToEdit) {
+        noteToEdit?.let {
+            title = it.title
+            content = it.content
+            category = it.category
+        }
+    }
+
     val saveNote = rememberUpdatedState {
-        // Create the new Note entity
-        val newNote = Note(
-            title = title.trim(),
-            content = content.trim(),
-            category = category.trim(),
-            createdAt = System.currentTimeMillis(),
-            updatedAt = System.currentTimeMillis()
-        )
-
-        // Call the ViewModel to save and insert the note
-        viewModel.insert(newNote)
-
-        // Navigate back to the list screen
+        if (noteId == "new") {
+            // Add new note
+            val newNote = Note(
+                title = title.trim(),
+                content = content.trim(),
+                category = category.trim(),
+                createdAt = System.currentTimeMillis(),
+                updatedAt = System.currentTimeMillis()
+            )
+            viewModel.insert(newNote)
+        } else{
+            // Update existing note
+            val updatedNote = noteToEdit?.copy(
+                title = title.trim(),
+                content = content.trim(),
+                category = category.trim(),
+                updatedAt = System.currentTimeMillis()
+            )
+            if (updatedNote != null) {
+                viewModel.update(updatedNote)
+            }
+        }
         onNavigateBack()
+
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Create New Note") },
+                title = { Text(if (noteId == "new") "Create Note" else "Edit Note") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -450,7 +499,7 @@ fun NoteAddScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Category Input
+            // for category input
             OutlinedTextField(
                 value = category,
                 onValueChange = { category = it },
@@ -465,7 +514,7 @@ fun NoteAddScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Content Input
+            // for content input
             OutlinedTextField(
                 value = content,
                 onValueChange = { content = it },

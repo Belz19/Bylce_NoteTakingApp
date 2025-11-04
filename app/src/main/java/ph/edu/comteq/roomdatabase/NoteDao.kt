@@ -10,9 +10,10 @@ import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
+
 @Dao
 interface NoteDao {
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertNote(note: Note): Long
 
     @Update
@@ -23,9 +24,8 @@ interface NoteDao {
 
     @Upsert
     suspend fun upsertNote(note: Note)
-
     @Query("SELECT * FROM notes WHERE id = :id")
-    fun getNoteById(id: Int): Note?
+    fun getNoteById(id: Int): Flow<Note?>
 
     @Query("SELECT * FROM notes ORDER BY id DESC")
     fun getAllNotes(): Flow<List<Note>>
@@ -34,11 +34,11 @@ interface NoteDao {
     suspend fun deleteAllNotes()
 
     // Search with Category (now sorted using new updated_at field)
-    @Query("SELECT * FROM notes WHERE title LIKE '%' || :searchQuery || '%' OR content LIKE '%' || :searchQuery || '%' ORDER BY updated_at DESC")
+    @Query("SELECT * FROM notes WHERE title LIKE '%' || :searchQuery || '%' OR content LIKE '%' || :searchQuery || '%' ORDER BY updatedAt DESC")
     fun searchNotes(searchQuery: String): Flow<List<Note>>
 
     // NEW: Search by category
-    @Query("SELECT * FROM notes WHERE category = :category ORDER BY updated_at DESC")
+    @Query("SELECT * FROM notes WHERE category = :category ORDER BY updatedAt DESC")
     fun getNotesByCategory(category: String): Flow<List<Note>>
 
     // get all categories
@@ -68,9 +68,11 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE id = :noteId")
     fun getNoteWithTags(noteId: Int): NoteWithTags?
 
+
+
     // Get all notes WITH their tags
     @Transaction
-    @Query("SELECT * FROM notes ORDER BY updated_at DESC")
+    @Query("SELECT * FROM notes ORDER BY updatedAt DESC")
     fun getAllNotesWithTags(): Flow<List<NoteWithTags>>
 
     @Update
